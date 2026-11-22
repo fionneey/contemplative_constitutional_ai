@@ -234,6 +234,7 @@ class DPOTrainer_Custom:
             bf16=self.config.bf16,
             logging_steps=self.config.logging_steps,
             save_steps=self.config.save_steps,
+            eval_strategy="steps" if self.eval_dataset is not None else "no",
             eval_steps=self.config.eval_steps,
             save_total_limit=self.config.save_total_limit,
             load_best_model_at_end=self.config.load_best_model_at_end,
