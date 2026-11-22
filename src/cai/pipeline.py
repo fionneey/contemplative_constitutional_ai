@@ -7,7 +7,7 @@ import json
 import logging
 import torch
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from tqdm import tqdm
 import sys
