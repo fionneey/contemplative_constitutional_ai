@@ -37,11 +37,8 @@ poc_config = {
 
 #### Environment Setup
 ```bash
-# Install PyTorch with MPS support
-pip install torch torchvision torchaudio
-
-# Install transformers with Apple Silicon optimizations
-pip install transformers[torch] accelerate datasets
+# Install the pinned dependencies (PyTorch with MPS support included)
+pip install -r requirements.txt
 
 # Verify MPS availability
 python -c "import torch; print(f'MPS available: {torch.backends.mps.is_available()}')"
