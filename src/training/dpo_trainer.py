@@ -111,7 +111,6 @@ class DPOTrainer_Custom:
         # Initialize components
         self.model = None
         self.tokenizer = None
-        self.ref_model = None
         self.device = None
         
         # Training components
@@ -133,11 +132,9 @@ class DPOTrainer_Custom:
             self.device = self.model.device if hasattr(self.model, 'device') else 'cpu'
             logger.info(f"Model loaded on device: {self.device}")
             
-            # Create reference model (copy of base model for DPO)
-            self.ref_model = type(self.model)(self.model.config)
-            self.ref_model.load_state_dict(self.model.state_dict())
-            if hasattr(self.model, 'device'):
-                self.ref_model = self.ref_model.to(self.model.device)
+            # No separate reference model: TRL's DPOTrainer uses the base
+            # model with the LoRA adapter disabled, or a frozen copy of the
+            # model when LoRA is off.
             
             # Apply LoRA if enabled
             if self.config.use_lora:
@@ -251,7 +248,6 @@ class DPOTrainer_Custom:
         # Create DPO trainer
         self.trainer = DPOTrainer(
             model=self.model,
-            ref_model=self.ref_model,
             args=training_args,
             train_dataset=self.train_dataset,
             eval_dataset=self.eval_dataset,
