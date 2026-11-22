@@ -5,32 +5,15 @@ Optimized for Apple Silicon (MPS) and CUDA devices.
 
 import os
 import json
-import torch
 import logging
 import yaml
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from tqdm import tqdm
 
-# Core ML libraries
-from transformers import (
-    AutoModelForCausalLM, 
-    AutoTokenizer,
-    TrainingArguments,
-    Trainer
-)
 from datasets import Dataset
 from peft import LoraConfig, get_peft_model, TaskType
-import numpy as np
-
-# TRL for DPO
-try:
-    from trl import DPOTrainer, DPOConfig
-    TRL_AVAILABLE = True
-except ImportError:
-    logging.warning("TRL not available, using basic trainer implementation")
-    TRL_AVAILABLE = False
+from trl import DPOTrainer, DPOConfig
 
 # Add src to path
 import sys
@@ -128,7 +111,6 @@ class DPOTrainer_Custom:
         # Initialize components
         self.model = None
         self.tokenizer = None
-        self.ref_model = None
         self.device = None
         
         # Training components
@@ -150,11 +132,9 @@ class DPOTrainer_Custom:
             self.device = self.model.device if hasattr(self.model, 'device') else 'cpu'
             logger.info(f"Model loaded on device: {self.device}")
             
-            # Create reference model (copy of base model for DPO)
-            self.ref_model = type(self.model)(self.model.config)
-            self.ref_model.load_state_dict(self.model.state_dict())
-            if hasattr(self.model, 'device'):
-                self.ref_model = self.ref_model.to(self.model.device)
+            # No separate reference model: TRL's DPOTrainer uses the base
+            # model with the LoRA adapter disabled, or a frozen copy of the
+            # model when LoRA is off.
             
             # Apply LoRA if enabled
             if self.config.use_lora:
@@ -224,22 +204,6 @@ class DPOTrainer_Custom:
         if self.eval_dataset:
             logger.info(f"Created eval dataset with {len(eval_data)} examples")
     
-    def _tokenize_function(self, examples):
-        """Tokenize examples for DPO training."""
-        # Tokenize prompts, chosen, and rejected responses
-        prompts = examples['prompt']
-        chosen = examples['chosen']
-        rejected = examples['rejected']
-        
-        # Tokenize each component
-        tokenized = {
-            'prompt': self.tokenizer(prompts, truncation=True, max_length=self.config.max_prompt_length),
-            'chosen': self.tokenizer(chosen, truncation=True, max_length=self.config.max_length),
-            'rejected': self.tokenizer(rejected, truncation=True, max_length=self.config.max_length)
-        }
-        
-        return tokenized
-    
     def prepare_training(self) -> None:
         """Prepare training arguments and trainer."""
         logger.info("Preparing training configuration")
@@ -255,15 +219,6 @@ class DPOTrainer_Custom:
             self.config.fp16 = False
             self.config.bf16 = False
 
-        if TRL_AVAILABLE:
-            # Use TRL DPOTrainer
-            self._prepare_trl_trainer()
-        else:
-            # Use custom implementation
-            self._prepare_custom_trainer()
-    
-    def _prepare_trl_trainer(self) -> None:
-        """Prepare TRL DPOTrainer."""
         # Training arguments
         training_args = DPOConfig(
             output_dir=self.config.output_dir,
@@ -279,6 +234,7 @@ class DPOTrainer_Custom:
             bf16=self.config.bf16,
             logging_steps=self.config.logging_steps,
             save_steps=self.config.save_steps,
+            eval_strategy="steps" if self.eval_dataset is not None else "no",
             eval_steps=self.config.eval_steps,
             save_total_limit=self.config.save_total_limit,
             load_best_model_at_end=self.config.load_best_model_at_end,
@@ -292,48 +248,6 @@ class DPOTrainer_Custom:
         
         # Create DPO trainer
         self.trainer = DPOTrainer(
-            model=self.model,
-            ref_model=self.ref_model,
-            args=training_args,
-            train_dataset=self.train_dataset,
-            eval_dataset=self.eval_dataset,
-            tokenizer=self.tokenizer,
-        )
-    
-    def _prepare_custom_trainer(self) -> None:
-        """Prepare custom trainer implementation."""
-        logger.warning("Using custom trainer - TRL not available")
-        
-        # Training arguments
-        training_args = TrainingArguments(
-            output_dir=self.config.output_dir,
-            num_train_epochs=self.config.num_train_epochs,
-            per_device_train_batch_size=self.config.per_device_train_batch_size,
-            gradient_accumulation_steps=self.config.gradient_accumulation_steps,
-            learning_rate=self.config.learning_rate,
-            warmup_ratio=self.config.warmup_ratio,
-            lr_scheduler_type=self.config.lr_scheduler_type,
-            weight_decay=self.config.weight_decay,
-            max_grad_norm=self.config.max_grad_norm,
-            fp16=self.config.fp16,
-            bf16=self.config.bf16,
-            logging_steps=self.config.logging_steps,
-            save_steps=self.config.save_steps,
-            eval_steps=self.config.eval_steps,
-            save_total_limit=self.config.save_total_limit,
-            load_best_model_at_end=self.config.load_best_model_at_end,
-            metric_for_best_model=self.config.metric_for_best_model,
-            dataloader_num_workers=self.config.dataloader_num_workers,
-        )
-        
-        # Tokenize datasets
-        if self.train_dataset:
-            self.train_dataset = self.train_dataset.map(self._tokenize_function, batched=True)
-        if self.eval_dataset:
-            self.eval_dataset = self.eval_dataset.map(self._tokenize_function, batched=True)
-        
-        # Create basic trainer
-        self.trainer = Trainer(
             model=self.model,
             args=training_args,
             train_dataset=self.train_dataset,

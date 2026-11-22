@@ -69,18 +69,17 @@ class ModelLoader:
         
         raise ValueError(f"Model '{model_key}' not found in configuration")
     
-    def get_loading_config(self, device: str, quantization: Optional[str] = None) -> Dict[str, Any]:
+    def get_loading_config(self, device: str) -> Dict[str, Any]:
         """
-        Get loading configuration based on device and quantization options.
-        
+        Get loading configuration for a device. Quantization is passed
+        separately as a BitsAndBytesConfig (see create_quantization_config).
+
         Args:
             device: Target device ('mps', 'cuda', 'cpu')
-            quantization: Optional quantization ('int8', 'int4')
-            
+
         Returns:
             Loading configuration dictionary
         """
-        # Base loading config
         if device == 'mps':
             base_config = self.config['loading_configs']['macbook_m2'].copy()
         elif device == 'cuda':
@@ -88,12 +87,7 @@ class ModelLoader:
         else:
             base_config = self.config['loading_configs']['single_gpu'].copy()
             base_config['device_map'] = 'cpu'
-        
-        # Add quantization if specified
-        if quantization and quantization in self.config['quantization']:
-            quant_config = self.config['quantization'][quantization]
-            base_config.update(quant_config)
-        
+
         return base_config
     
     def create_quantization_config(self, quantization_type: str) -> Optional[BitsAndBytesConfig]:
@@ -155,7 +149,7 @@ class ModelLoader:
             device = self.detect_device()
         
         # Get loading configuration
-        loading_config = self.get_loading_config(device, quantization)
+        loading_config = self.get_loading_config(device)
         
         # Handle torch_dtype
         if 'torch_dtype' in loading_config:

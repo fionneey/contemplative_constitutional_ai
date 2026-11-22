@@ -50,34 +50,10 @@ python scripts/train_dpo.py \
     --base-model qwen2_0_5b \
     --output models/qwen-0.5b-custom-constitution \
     --device mps
-
-# Run contemplative CAI finetuning on QWEN2-0.5B (PoC)
-python src/train_constitutional.py \
-    --model Qwen/Qwen2-0.5B-Instruct \
-    --principles contemplative \
-    --device mps \
-    --batch_size 1 \
-    --max_pairs 500
-
-# Evaluate on AILuminate demo dataset
-python src/evaluate.py \
-    --model ./models/qwen-0.5b-contemplative-poc \
-    --benchmarks ailuminate_demo
 ```
 
 ### Development Scale (Cloud GPUs)
-```bash
-# Run contemplative CAI finetuning on QWEN2.5-7B
-python src/train_constitutional.py \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --principles contemplative \
-    --device cuda
-
-# Evaluate on full alignment benchmarks
-python src/evaluate.py \
-    --model ./models/qwen-contemplative \
-    --benchmarks alignment_full
-```
+Run the same two commands with `--model qwen2_5_7b` / `--base-model qwen2_5_7b` and `--device cuda`. Model keys live in `configs/model_configs.yaml`. There is no evaluation script yet; see `EVALUATION_METRICS.md` for the plan.
 
 ## Methodology
 
@@ -105,14 +81,16 @@ Compare finetuned models against base models on:
 
 ```
 ├── src/
-│   ├── train_constitutional.py    # Main training script
-│   ├── evaluate.py               # Evaluation pipeline
-│   └── utils/                    # Training utilities
+│   ├── constitutional/          # Markdown constitution parser
+│   ├── cai/                     # Critique, revision and preference-pair pipeline
+│   ├── models/                  # Device-aware model loading
+│   └── training/                # DPO + LoRA trainer (TRL)
+├── scripts/                     # generate_cai_data.py, train_dpo.py, smoke_test.py
 ├── data/
-│   ├── constitutions/           # Contemplative principles
-│   └── benchmarks/              # Evaluation datasets
+│   ├── constitutions/           # Contemplative constitutions
+│   └── prompts/                 # Demo prompts
 ├── configs/                     # Model and training configs
-├── results/                     # Experimental results
+├── results/                     # Generated outputs (gitignored)
 ├── DATA_PIPELINE.md             # Detailed data collection and processing
 ├── EVALUATION_METRICS.md        # Comprehensive evaluation methodology
 ├── IMPLEMENTATION_PLAN.md       # Phase-by-phase development plan

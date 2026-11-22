@@ -5,7 +5,6 @@ Verifies environment, device detection, and basic model loading.
 """
 
 import sys
-import os
 import torch
 import psutil
 from pathlib import Path
@@ -13,7 +12,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from models.model_loader import ModelLoader, load_qwen_poc_model
+from models.model_loader import ModelLoader
 
 
 def test_simple_model_loading():
@@ -62,8 +61,6 @@ def test_simple_model_loading():
         print(f"❌ Simple model loading failed: {e}")
         print("   This indicates a fundamental issue with the environment")
         return False
-    
-    print()
 
 
 def check_system_requirements():
@@ -138,6 +135,7 @@ def check_pytorch_installation():
             
     except Exception as e:
         print(f"❌ Error in tensor operations: {e}")
+        return False
     
     print()
 
@@ -203,7 +201,10 @@ def test_actual_model_loading():
     """Test actual model loading (optional - requires network and time)."""
     print("=== Actual Model Loading Test ===")
     
-    response = input("Load actual model for testing? This requires network access and RAM. (y/N): ")
+    try:
+        response = input("Load actual model for testing? This requires network access and RAM. (y/N): ")
+    except EOFError:  # no stdin (CI, piped runs): skip like "N"
+        response = ""
     if response.lower() != 'y':
         print("⏭️ Skipping actual model loading")
         return True
@@ -338,6 +339,7 @@ def main():
     # Memory usage after tests
     memory = psutil.virtual_memory()
     print(f"\nMemory usage after tests: {memory.percent}% ({memory.available / (1024**3):.1f} GB available)")
+    sys.exit(0 if passed == total else 1)
 
 
 if __name__ == "__main__":

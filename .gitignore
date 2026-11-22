@@ -81,8 +81,6 @@ data/*.jsonl
 data/*.json
 data/*.csv
 data/*.parquet
-!data/constitutions/  # Keep constitutional principles
-!data/benchmarks/sample/  # Keep small sample datasets
 !data/README.md
 
 # Evaluation results and logs

@@ -304,7 +304,8 @@ class ConstitutionalParser:
         guidelines: List[str] = []
         for raw_line in content.split('\n'):
             line = raw_line.strip()
-            if not line:
+            # Skip blank lines and markdown headings (e.g. "## Meta principles:")
+            if not line or line.startswith('#'):
                 continue
 
             # Remove leading bullets or numbering (e.g., "-", "*", "E1.", "1.")
